@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Calendar } from 'lucide-react';
+import { Plus, Search, Calendar, Edit, Trash2 } from 'lucide-react';
 import { DatabaseService, type Rabbit } from '@/utils/database';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +26,8 @@ const RabbitManager: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editingRabbit, setEditingRabbit] = useState<Rabbit | null>(null);
   const [loading, setLoading] = useState(true);
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -37,7 +38,8 @@ const RabbitManager: React.FC = () => {
     sexe: 'femelle' as 'male' | 'femelle',
     race: '',
     date_naissance: '',
-    poids_actuel: 0
+    poids_actuel: 0,
+    statut: 'jeune' as 'jeune' | 'sevre' | 'pret_vente' | 'reproducteur' | 'malade' | 'vendu'
   });
 
   useEffect(() => {
@@ -81,6 +83,17 @@ const RabbitManager: React.FC = () => {
     setFilteredRabbits(filtered);
   };
 
+  const resetForm = () => {
+    setFormData({
+      nom: '',
+      sexe: 'femelle',
+      race: '',
+      date_naissance: '',
+      poids_actuel: 0,
+      statut: 'jeune'
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -94,30 +107,65 @@ const RabbitManager: React.FC = () => {
     }
 
     try {
-      await DatabaseService.addRabbit(formData);
-      
-      toast({
-        title: t('common.success'),
-        description: 'Lapin ajouté avec succès'
-      });
+      if (editingRabbit) {
+        await DatabaseService.updateRabbit(editingRabbit.id!, formData);
+        toast({
+          title: t('common.success'),
+          description: 'Lapin modifié avec succès'
+        });
+        setShowEditForm(false);
+        setEditingRabbit(null);
+      } else {
+        await DatabaseService.addRabbit(formData);
+        toast({
+          title: t('common.success'),
+          description: 'Lapin ajouté avec succès'
+        });
+        setShowAddForm(false);
+      }
 
-      setFormData({
-        nom: '',
-        sexe: 'femelle',
-        race: '',
-        date_naissance: '',
-        poids_actuel: 0
-      });
-      
-      setShowAddForm(false);
+      resetForm();
       loadRabbits();
     } catch (error) {
-      console.error('Error adding rabbit:', error);
+      console.error('Error saving rabbit:', error);
       toast({
         title: t('common.error'),
-        description: 'Erreur lors de l\'ajout du lapin',
+        description: 'Erreur lors de l\'enregistrement du lapin',
         variant: 'destructive'
       });
+    }
+  };
+
+  const handleEdit = (rabbit: Rabbit) => {
+    setEditingRabbit(rabbit);
+    setFormData({
+      nom: rabbit.nom,
+      sexe: rabbit.sexe,
+      race: rabbit.race,
+      date_naissance: rabbit.date_naissance,
+      poids_actuel: rabbit.poids_actuel,
+      statut: rabbit.statut
+    });
+    setShowEditForm(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce lapin ?')) {
+      try {
+        await DatabaseService.deleteRabbit(id);
+        toast({
+          title: t('common.success'),
+          description: 'Lapin supprimé avec succès'
+        });
+        loadRabbits();
+      } catch (error) {
+        console.error('Error deleting rabbit:', error);
+        toast({
+          title: t('common.error'),
+          description: 'Erreur lors de la suppression',
+          variant: 'destructive'
+        });
+      }
     }
   };
 
@@ -148,6 +196,109 @@ const RabbitManager: React.FC = () => {
     );
   }
 
+  const RabbitForm = ({ isEdit = false }: { isEdit?: boolean }) => (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="nom">{t('rabbits.name')} *</Label>
+        <Input
+          id="nom"
+          value={formData.nom}
+          onChange={(e) => setFormData({...formData, nom: e.target.value})}
+          required
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="sexe">{t('rabbits.sex')}</Label>
+        <Select value={formData.sexe} onValueChange={(value: 'male' | 'femelle') => setFormData({...formData, sexe: value})}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="femelle">{t('rabbits.female')}</SelectItem>
+            <SelectItem value="male">{t('rabbits.male')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="race">{t('rabbits.race')} *</Label>
+        <Select value={formData.race} onValueChange={(value) => setFormData({...formData, race: value})}>
+          <SelectTrigger>
+            <SelectValue placeholder="Sélectionner une race" />
+          </SelectTrigger>
+          <SelectContent>
+            {RABBIT_RACES.map(race => (
+              <SelectItem key={race} value={race}>{race}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="date_naissance">{t('rabbits.birthDate')} *</Label>
+        <Input
+          id="date_naissance"
+          type="date"
+          value={formData.date_naissance}
+          onChange={(e) => setFormData({...formData, date_naissance: e.target.value})}
+          required
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="poids_actuel">{t('rabbits.currentWeight')} (kg)</Label>
+        <Input
+          id="poids_actuel"
+          type="number"
+          step="0.1"
+          value={formData.poids_actuel}
+          onChange={(e) => setFormData({...formData, poids_actuel: parseFloat(e.target.value) || 0})}
+        />
+      </div>
+
+      {isEdit && (
+        <div>
+          <Label htmlFor="statut">{t('rabbits.status')}</Label>
+          <Select value={formData.statut} onValueChange={(value: any) => setFormData({...formData, statut: value})}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="jeune">Jeune</SelectItem>
+              <SelectItem value="sevre">Sevré</SelectItem>
+              <SelectItem value="pret_vente">Prêt vente</SelectItem>
+              <SelectItem value="reproducteur">Reproducteur</SelectItem>
+              <SelectItem value="malade">Malade</SelectItem>
+              <SelectItem value="vendu">Vendu</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      <div className="flex justify-end space-x-2 pt-4">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={() => {
+            if (isEdit) {
+              setShowEditForm(false);
+              setEditingRabbit(null);
+            } else {
+              setShowAddForm(false);
+            }
+            resetForm();
+          }}
+        >
+          {t('common.cancel')}
+        </Button>
+        <Button type="submit" className="bg-green-600 hover:bg-green-700">
+          {t('common.save')}
+        </Button>
+      </div>
+    </form>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -165,76 +316,16 @@ const RabbitManager: React.FC = () => {
             <DialogHeader>
               <DialogTitle>{t('rabbits.add')}</DialogTitle>
             </DialogHeader>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="nom">{t('rabbits.name')} *</Label>
-                <Input
-                  id="nom"
-                  value={formData.nom}
-                  onChange={(e) => setFormData({...formData, nom: e.target.value})}
-                  required
-                />
-              </div>
+            <RabbitForm />
+          </DialogContent>
+        </Dialog>
 
-              <div>
-                <Label htmlFor="sexe">{t('rabbits.sex')}</Label>
-                <Select value={formData.sexe} onValueChange={(value: 'male' | 'femelle') => setFormData({...formData, sexe: value})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="femelle">{t('rabbits.female')}</SelectItem>
-                    <SelectItem value="male">{t('rabbits.male')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="race">{t('rabbits.race')} *</Label>
-                <Select value={formData.race} onValueChange={(value) => setFormData({...formData, race: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner une race" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {RABBIT_RACES.map(race => (
-                      <SelectItem key={race} value={race}>{race}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="date_naissance">{t('rabbits.birthDate')} *</Label>
-                <Input
-                  id="date_naissance"
-                  type="date"
-                  value={formData.date_naissance}
-                  onChange={(e) => setFormData({...formData, date_naissance: e.target.value})}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="poids_actuel">{t('rabbits.currentWeight')} (kg)</Label>
-                <Input
-                  id="poids_actuel"
-                  type="number"
-                  step="0.1"
-                  value={formData.poids_actuel}
-                  onChange={(e) => setFormData({...formData, poids_actuel: parseFloat(e.target.value) || 0})}
-                />
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>
-                  {t('common.cancel')}
-                </Button>
-                <Button type="submit" className="bg-green-600 hover:bg-green-700">
-                  {t('common.save')}
-                </Button>
-              </div>
-            </form>
+        <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Modifier le lapin</DialogTitle>
+            </DialogHeader>
+            <RabbitForm isEdit={true} />
           </DialogContent>
         </Dialog>
       </div>
@@ -316,9 +407,26 @@ const RabbitManager: React.FC = () => {
               </div>
               
               <div className="pt-2 border-t">
-                <Button variant="outline" size="sm" className="w-full">
-                  Voir détails
-                </Button>
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => handleEdit(rabbit)}
+                  >
+                    <Edit className="h-3 w-3 mr-1" />
+                    Modifier
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1 text-red-600 hover:text-red-700"
+                    onClick={() => handleDelete(rabbit.id!)}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Supprimer
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

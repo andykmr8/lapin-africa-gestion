@@ -223,13 +223,17 @@ export const useTranslation = () => {
 
   const t = (key: string): string => {
     const keys = key.split('.');
-    let value = translations[language];
+    let value: any = translations[language];
     
     for (const k of keys) {
-      value = value?.[k];
+      if (value && typeof value === 'object') {
+        value = value[k];
+      } else {
+        return key;
+      }
     }
     
-    return value || key;
+    return typeof value === 'string' ? value : key;
   };
 
   return {

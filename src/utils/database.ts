@@ -93,7 +93,7 @@ class DatabaseService {
       ...rabbit,
       id: Date.now(),
       created_at: new Date().toISOString(),
-      statut: this.calculateRabbitStatus(rabbit)
+      statut: rabbit.statut || this.calculateRabbitStatus(rabbit)
     };
     
     rabbits.push(newRabbit);
@@ -109,10 +109,16 @@ class DatabaseService {
       rabbits[index] = { 
         ...rabbits[index], 
         ...updates,
-        statut: this.calculateRabbitStatus({ ...rabbits[index], ...updates })
+        statut: updates.statut || this.calculateRabbitStatus({ ...rabbits[index], ...updates })
       };
       localStorage.setItem('rabbits', JSON.stringify(rabbits));
     }
+  }
+
+  static async deleteRabbit(id: number): Promise<void> {
+    const rabbits = await this.getRabbits();
+    const filtered = rabbits.filter(r => r.id !== id);
+    localStorage.setItem('rabbits', JSON.stringify(filtered));
   }
 
   static calculateRabbitStatus(rabbit: Partial<Rabbit>): Rabbit['statut'] {
@@ -168,6 +174,22 @@ class DatabaseService {
     }
   }
 
+  static async deleteStock(id: number): Promise<void> {
+    const stocks = await this.getStocks();
+    const filtered = stocks.filter(s => s.id !== id);
+    localStorage.setItem('stocks', JSON.stringify(filtered));
+  }
+
+  static async useStock(id: number, quantity: number): Promise<void> {
+    const stocks = await this.getStocks();
+    const index = stocks.findIndex(s => s.id === id);
+    
+    if (index !== -1) {
+      stocks[index].quantite = Math.max(0, stocks[index].quantite - quantity);
+      localStorage.setItem('stocks', JSON.stringify(stocks));
+    }
+  }
+
   // Méthodes pour les finances
   static async getFinances(): Promise<Finance[]> {
     const data = localStorage.getItem('finances');
@@ -185,6 +207,12 @@ class DatabaseService {
     finances.push(newFinance);
     localStorage.setItem('finances', JSON.stringify(finances));
     return newFinance.id!;
+  }
+
+  static async deleteFinance(id: number): Promise<void> {
+    const finances = await this.getFinances();
+    const filtered = finances.filter(f => f.id !== id);
+    localStorage.setItem('finances', JSON.stringify(filtered));
   }
 
   // Méthodes pour les reproductions
@@ -261,6 +289,42 @@ class DatabaseService {
       monthlyProfit: monthlyRevenue - monthlyExpenses,
       lowStockItems
     };
+  }
+
+  // Méthodes pour la sauvegarde et restauration
+  static async exportData(): Promise<string> {
+    const data = {
+      rabbits: await this.getRabbits(),
+      stocks: await this.getStocks(),
+      finances: await this.getFinances(),
+      reproductions: await this.getReproductions(),
+      sante: await this.getSante(),
+      exportDate: new Date().toISOString()
+    };
+    
+    return JSON.stringify(data, null, 2);
+  }
+
+  static async importData(jsonData: string): Promise<void> {
+    try {
+      const data = JSON.parse(jsonData);
+      
+      if (data.rabbits) localStorage.setItem('rabbits', JSON.stringify(data.rabbits));
+      if (data.stocks) localStorage.setItem('stocks', JSON.stringify(data.stocks));
+      if (data.finances) localStorage.setItem('finances', JSON.stringify(data.finances));
+      if (data.reproductions) localStorage.setItem('reproductions', JSON.stringify(data.reproductions));
+      if (data.sante) localStorage.setItem('sante', JSON.stringify(data.sante));
+      
+    } catch (error) {
+      throw new Error('Format de données invalide');
+    }
+  }
+
+  static async clearAllData(): Promise<void> {
+    const tables = ['rabbits', 'stocks', 'finances', 'reproductions', 'sante'];
+    tables.forEach(table => {
+      localStorage.setItem(table, JSON.stringify([]));
+    });
   }
 }
 
