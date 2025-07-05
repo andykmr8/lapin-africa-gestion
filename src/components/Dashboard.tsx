@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,6 +55,30 @@ const Dashboard: React.FC = () => {
       style: 'currency',
       currency: 'XOF'
     }).format(amount);
+  };
+
+  const handleAddRabbit = () => {
+    // Placeholder for adding rabbit functionality
+    toast({
+      title: t('common.success'),
+      description: 'Fonction "Ajouter lapin" sera disponible bientôt',
+    });
+  };
+
+  const handleRecordSale = () => {
+    // Placeholder for recording sale functionality
+    toast({
+      title: t('common.success'),
+      description: 'Fonction "Enregistrer vente" sera disponible bientôt',
+    });
+  };
+
+  const handleManageStock = () => {
+    // Placeholder for managing stock functionality
+    toast({
+      title: t('common.success'),
+      description: 'Fonction "Gérer stocks" sera disponible bientôt',
+    });
   };
 
   if (loading) {
@@ -198,21 +221,30 @@ const Dashboard: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button className="h-16 bg-green-600 hover:bg-green-700">
+            <Button 
+              className="h-16 bg-green-600 hover:bg-green-700"
+              onClick={handleAddRabbit}
+            >
               <div className="text-center">
                 <Plus className="h-6 w-6 mx-auto mb-1" />
                 <div className="text-sm">{t('dashboard.addRabbit')}</div>
               </div>
             </Button>
             
-            <Button className="h-16 bg-blue-600 hover:bg-blue-700">
+            <Button 
+              className="h-16 bg-blue-600 hover:bg-blue-700"
+              onClick={handleRecordSale}
+            >
               <div className="text-center">
                 <TrendingUp className="h-6 w-6 mx-auto mb-1" />
                 <div className="text-sm">{t('dashboard.recordSale')}</div>
               </div>
             </Button>
             
-            <Button className="h-16 bg-purple-600 hover:bg-purple-700">
+            <Button 
+              className="h-16 bg-purple-600 hover:bg-purple-700"
+              onClick={handleManageStock}
+            >
               <div className="text-center">
                 <Database className="h-6 w-6 mx-auto mb-1" />
                 <div className="text-sm">Gérer stocks</div>
