@@ -2,8 +2,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.f2742c5d1a3c4b8eaa38b158cbf1f466',
-  appName: 'lapin-africa-gestion',
+  appId: 'com.example.app',
+  appName: 'BunnyManager',
   webDir: 'dist',
   server: {
     androidScheme: 'https'
